@@ -4,9 +4,19 @@ Build and/or install the Citrix Workspace app (ICAClient) as a Flatpak applicati
 #### Disclaimer
 > This project and I are not affiliated with Citrix. This repository does not contain any Citrix software. When the user builds the Flatpak application using this template, the required packages are obtained from [Citrix's website](https://www.citrix.com/downloads/workspace-app/linux/workspace-app-for-linux-latest.html), where Citrix has made the installers available for download. By downloading Citrix software, you agree to and accept the [Citrix End-User License Agreement](https://www.cloud.com/content/dam/cloud/documents/legal/end-user-agreement.pdf).
 
-I use this flatpak on Fedora 42 and Linux Mint 22. Previous version (where this was forked from) was also tested on Bluefin, a variant of Fedora Silverblue.
+Fork of [Gaeldrin/com.citrix.ICAClient](https://github.com/Gaeldrin/com.citrix.ICAClient), maintained for smart card (PIV/CAC) use. Tested on Fedora 44 (Bluefin-style atomic, KDE Plasma Wayland), x86_64.
 
-This repository will be supported and updated for as long as I require this for my work. As I am a consultant and change projects fairly frequently, this will not be for that long.
+### Changes in this fork
+- GNOME runtime 50.
+- Smart cards: `--socket=pcsc` (host `pcscd`), bundled pcsc-lite client (including the unversioned `libpcsclite.so` that Citrix loads), and OpenSC. `AuthManConfig.xml` `PKCS11module` points at `/app/lib/opensc-pkcs11.so`. OpenSC tools (`opensc-tool`, `pkcs11-tool`) are available via `flatpak run --command=...`.
+- WebKitGTK 4.0 for `selfservice` and the WebKit auth dialogs, taken from the bundle inside Citrix's x86_64 tarball, plus the libraries it and the Citrix binaries need that the runtime no longer ships: libsoup 2.4, libxml2 (`.so.2`), libjpeg (`.so.8`).
+- The desktop entry passes the opened file (`%f`), so `.ica` files opened from a browser reach `wfica`.
+- The version checker matches the current `linuxx64-gcc-8-<version>.tar.gz` file names.
+
+### Known limits
+- Citrix USB redirection and App Protection are not installed (they need a root install).
+- Rendering goes through X11/XWayland. On a multi-monitor KDE Wayland desktop, a session spanning all monitors showed a black window; capping `DesiredHRES`/`DesiredVRES` in `~/.var/app/com.citrix.ICAClient/.ICAClient/All_Regions.ini` (`[Virtual Channels\Thinwire Graphics]`) avoids it.
+- aarch64 builds do not include WebKit 4.0 (Citrix only bundles it for x86_64).
 
 ## Local build from sources
 You can build your own flatpak using the following steps.
@@ -22,7 +32,7 @@ Perform the [flatpak setup](https://flatpak.org/setup/).
 Add the flathub remote, and install the Gnome SDK and runtime:
 
     flatpak remote-add --user --if-not-exists flathub https://flathub.org/repo/flathub.flatpakrepo
-    flatpak install --user flathub org.gnome.Platform//46 org.gnome.Sdk//46
+    flatpak install --user flathub org.gnome.Platform//50 org.gnome.Sdk//50
 
 Clone/download this repo. Open a terminal in the folder where you downloaded this repo, and run the following:
 
@@ -48,4 +58,7 @@ When you build the app, it will automatically download the most recent version o
 ## Flatpak repository
 This repository also hosts Github pages with Flatpak repository so the integration is much more streamlined, taking advantage of the [Flatter project](https://github.com/andyholmes/flatter).
 
-You can take a look here: https://gaeldrin.github.io/com.citrix.ICAClient/
+You can take a look here: https://danathar.github.io/com.citrix.ICAClient/
+
+    flatpak remote-add --user --if-not-exists ica-client https://danathar.github.io/com.citrix.ICAClient/index.flatpakrepo
+    flatpak install --user ica-client com.citrix.ICAClient

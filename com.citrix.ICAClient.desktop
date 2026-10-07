@@ -1,7 +1,7 @@
 [Desktop Entry]
 Name=Citrix Workspace
 Comment=Citrix Workspace
-Exec=/app/bin/run.sh
+Exec=/app/bin/run.sh %f
 Icon=com.citrix.ICAClient
 Terminal=false
 Type=Application

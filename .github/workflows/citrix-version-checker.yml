@@ -54,8 +54,8 @@ jobs:
                 response = requests.get(url, headers=headers, timeout=30)
                 response.raise_for_status()
 
-                # Look for download links with version patterns
-                version_pattern = r'linuxx64-(\d+\.\d+\.\d+\.\d+)\.tar\.gz'
+                # Look for download links with version patterns (current builds are named linuxx64-gcc-8-<version>.tar.gz)
+                version_pattern = r'linuxx64-(?:gcc-\d+-)?(\d+\.\d+\.\d+\.\d+)\.tar\.gz'
                 matches = re.findall(version_pattern, response.text)
 
                 if matches:
@@ -212,7 +212,7 @@ jobs:
               .addRaw('\n\nA repository rebuild has been triggered automatically.')
               .addRaw('\n\nThe updated Flatpak will be available shortly at:')
               .addRaw('\n```')
-              .addRaw('\nhttps://gaeldrin.github.io/com.citrix.ICAClient/')
+              .addRaw('\nhttps://danathar.github.io/com.citrix.ICAClient/')
               .addRaw('\n```')
               .write();
 

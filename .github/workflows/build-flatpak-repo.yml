@@ -111,7 +111,7 @@ jobs:
 
             <h3>Add this repository:</h3>
             <div class="code-block">
-        flatpak remote-add --if-not-exists ica-client https://gaeldrin.github.io/com.citrix.ICAClient/index.flatpakrepo
+        flatpak remote-add --if-not-exists ica-client https://danathar.github.io/com.citrix.ICAClient/index.flatpakrepo
             </div>
 
             <h3>Install the application:</h3>
@@ -132,7 +132,7 @@ jobs:
 
             <h2>🔗 Links</h2>
             <ul>
-                <li><a href="https://github.com/Gaeldrin/com.citrix.ICAClient">Source Repository</a></li>
+                <li><a href="https://github.com/Danathar/com.citrix.ICAClient">Source Repository</a></li>
                 <li><a href="https://www.citrix.com/downloads/workspace-app/">Official Citrix Downloads</a></li>
                 <li><a href="https://docs.citrix.com/en-us/citrix-workspace-app-for-linux.html">Citrix Documentation</a></li>
             </ul>
@@ -156,9 +156,9 @@ jobs:
         EOF
 
     # Citrix dependencies
-    - name: Install GNOME 46 SDK and Platform
+    - name: Install GNOME 50 SDK and Platform
       run: |
-        flatpak install --noninteractive flathub org.gnome.Sdk//46 org.gnome.Platform//46
+        flatpak install --noninteractive flathub org.gnome.Sdk//50 org.gnome.Platform//50
 
     # Build the Flatpak using Flatter
     - name: Build Flatpak
@@ -182,7 +182,7 @@ jobs:
     - name: Generate flatpakref file
       if: matrix.arch == 'x86_64'  # Only generate once
       run: |
-        REPO_URL="https://gaeldrin.github.io/com.citrix.ICAClient"
+        REPO_URL="https://danathar.github.io/com.citrix.ICAClient"
         if [ -f CNAME ]; then
           REPO_URL="https://$(cat CNAME)"
         fi
@@ -196,7 +196,7 @@ jobs:
         IsRuntime=false
         Comment=Citrix ICA Client for accessing Citrix Virtual Apps and Desktops
         Description=Citrix ICA Client (also known as Citrix Workspace App) allows you to access virtual applications and desktops from Citrix Virtual Apps and Desktops (formerly XenApp and XenDesktop).
-        Icon=https://raw.githubusercontent.com/Gaeldrin/com.citrix.ICAClient/master/citrix-workspace.png
+        Icon=https://raw.githubusercontent.com/Danathar/com.citrix.ICAClient/master/citrix-workspace.png
         EOF
 
   # Deploy to GitHub Pages
@@ -235,7 +235,7 @@ jobs:
         echo "- **Branch**: ${{ github.ref_name }}" >> $GITHUB_STEP_SUMMARY
         echo "- **Build Status**: ${{ needs.build-flatpak.result }}" >> $GITHUB_STEP_SUMMARY
         echo "- **Deploy Status**: ${{ needs.deploy-pages.result }}" >> $GITHUB_STEP_SUMMARY
-        echo "- **Repository URL**: https://gaeldrin.github.io/com.citrix.ICAClient/" >> $GITHUB_STEP_SUMMARY
+        echo "- **Repository URL**: https://danathar.github.io/com.citrix.ICAClient/" >> $GITHUB_STEP_SUMMARY
         echo "" >> $GITHUB_STEP_SUMMARY
 
         if [ "${{ needs.build-flatpak.result }}" == "success" ] && [ "${{ needs.deploy-pages.result }}" == "success" ]; then
@@ -243,7 +243,7 @@ jobs:
           echo "" >> $GITHUB_STEP_SUMMARY
           echo "### 🚀 Installation Instructions" >> $GITHUB_STEP_SUMMARY
           echo '```bash' >> $GITHUB_STEP_SUMMARY
-          echo 'flatpak remote-add --if-not-exists ica-client https://gaeldrin.github.io/com.citrix.ICAClient/index.flatpakrepo' >> $GITHUB_STEP_SUMMARY
+          echo 'flatpak remote-add --if-not-exists ica-client https://danathar.github.io/com.citrix.ICAClient/index.flatpakrepo' >> $GITHUB_STEP_SUMMARY
           echo 'flatpak install ica-client com.citrix.ICAClient' >> $GITHUB_STEP_SUMMARY
           echo '```' >> $GITHUB_STEP_SUMMARY
         else

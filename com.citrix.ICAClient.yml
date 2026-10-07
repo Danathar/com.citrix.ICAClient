@@ -1,6 +1,6 @@
 id: com.citrix.ICAClient
 runtime: org.gnome.Platform
-runtime-version: "46" # Requirements as per Citrix's site: https://docs.citrix.com/en-us/citrix-workspace-app-for-linux/system-requirements.html
+runtime-version: "50" # Requirements as per Citrix's site: https://docs.citrix.com/en-us/citrix-workspace-app-for-linux/system-requirements.html
 sdk: org.gnome.Sdk
 command: /app/bin/run.sh
 
@@ -14,12 +14,106 @@ finish-args:
   - --socket=pulseaudio
   - --socket=x11
   - --share=ipc # Required for X11 to work properly
+  - --socket=pcsc # Smart card readers via the host pcscd
   - --env=ICAROOT=/app/ICAClient
   - --filesystem=xdg-download # Access to downloaded ica files
   - --persist=. # Gives the app a persistent that is treated as the home directory, located at ~/.var/app/com.citrix.ICAClient
   - --persist=.ICAClient # Log/config directory (relative to the Flatpak container home folder)
 
 modules:
+  # PC/SC client library. Citrix dlopens the unversioned libpcsclite.so for smart card redirection,
+  # and OpenSC links against it. The daemon side is the host's pcscd (--socket=pcsc).
+  - name: pcsc-lite
+    buildsystem: meson
+    config-opts:
+      - -Dlibsystemd=false
+      - -Dlibudev=false
+      - -Dpolkit=false
+      - -Dusb=false
+      - -Dserial=false
+    cleanup:
+      - /sbin
+      - /share/man
+      - /share/doc
+    sources:
+      - type: archive
+        url: https://github.com/LudovicRousseau/PCSC/archive/refs/tags/2.4.1.tar.gz
+        sha256: e7b6737f68c3b9a763fb0b0370d899cea091cced9d762ca8a6032c959576d5be
+
+  # PKCS#11 module for smart card (PIV/CAC) authentication; AuthManConfig.xml PKCS11module points here.
+  - name: opensc
+    config-opts:
+      - --disable-man
+      - --disable-doc
+      - --disable-tests
+      - --disable-notify
+      - --disable-autostart-items
+      - --with-completiondir=/app/share/bash-completion/completions
+      - --enable-p11_system_config_modules=/app/share/p11-kit/modules
+    cleanup:
+      - /share/man
+      - /share/doc
+      - /share/applications
+      - /bin/opensc-notify
+      - /lib/*.a
+      - /lib/*.la
+    sources:
+      - type: archive
+        url: https://github.com/OpenSC/OpenSC/releases/download/0.27.1/opensc-0.27.1.tar.gz
+        sha256: 976f4a23eaf3397a1a2c3a7aac80bf971a8c3d829c9a79f06145bfaeeae5eca7
+
+  # libxml2 with the legacy .so.2 ABI: selfservice, configmgr, UtilDaemon, storebrowse and the WebKit 4.0
+  # bundle link libxml2.so.2, but the GNOME 50 runtime ships libxml2.so.16.
+  - name: libxml2
+    config-opts:
+      - --without-python
+      - --disable-static
+    cleanup:
+      - /bin
+      - /share/man
+      - /share/doc
+      - /share/gtk-doc
+    sources:
+      - type: archive
+        url: https://download.gnome.org/sources/libxml2/2.13/libxml2-2.13.9.tar.xz
+        sha256: a2c9ae7b770da34860050c309f903221c67830c86e4a7e760692b803df95143a
+
+  # libjpeg.so.8 for the WebKit 4.0 bundle (the runtime provides libjpeg.so.62)
+  - name: libjpeg8
+    buildsystem: cmake-ninja
+    config-opts:
+      - -DCMAKE_INSTALL_LIBDIR=/app/lib
+      - -DWITH_JPEG8=ON
+      - -DWITH_TURBOJPEG=OFF
+      - -DWITH_TOOLS=OFF
+      - -DENABLE_STATIC=OFF
+    cleanup:
+      - /share
+    sources:
+      - type: archive
+        url: https://github.com/libjpeg-turbo/libjpeg-turbo/releases/download/3.2.0/libjpeg-turbo-3.2.0.tar.gz
+        sha256: 6f30092cef9fb839779646608f4ee14ae3cbac989c47fa05e841b0841f09878e
+
+  # libsoup 2.4 is required by the WebKitGTK 4.0 bundle Citrix ships (selfservice and auth dialogs);
+  # the GNOME runtime only provides libsoup 3.
+  - name: libsoup2
+    buildsystem: meson
+    config-opts:
+      - -Dgssapi=disabled
+      - -Dntlm=disabled
+      - -Dbrotli=enabled
+      - -Dtls_check=false
+      - -Dintrospection=disabled
+      - -Dvapi=disabled
+      - -Dgtk_doc=false
+      - -Dtests=false
+      - -Dinstalled_tests=false
+      - -Dsysprof=disabled
+    sources:
+      - type: archive
+        url: https://download.gnome.org/sources/libsoup/2.74/libsoup-2.74.3.tar.xz
+        sha256: e4b77c41cfc4c8c5a035fcdc320c7bc6cfb75ef7c5a034153df1413fa1d92f13
+
   - name: icaclient
     buildsystem: simple
     build-commands:
@@ -53,6 +147,24 @@ modules:
 
         install -Dm 644 /tmp/icaclient/${folder}/${folder}.cor/icons/000_Receiver_64.png ${FLATPAK_DEST}/share/icons/hicolor/64x64/apps/${FLATPAK_ID}.png
         install -Dm 644 /tmp/icaclient/${folder}/${folder}.cor/icons/receiver.png ${FLATPAK_DEST}/share/icons/hicolor/256x256/apps/${FLATPAK_ID}.png
+
+        # WebKitGTK 4.0 (needed by selfservice and the WebKit auth dialogs) is not in the GNOME runtime;
+        # Citrix bundles a build in the x86_64 tarball. Its helper processes are compiled to run from
+        # /usr/lib/x86_64-linux-gnu/webkit2gtk-4.0, so rewrite that path to the same-length /app path.
+        webkit_tar=/tmp/icaclient/${folder}/${folder}.cor/Webkit2gtk4.0/webkit2gtk-4.0.tar.gz
+        if [ -f "${webkit_tar}" ]; then
+          mkdir -p /tmp/webkit
+          tar --no-same-owner -zxf "${webkit_tar}" -C /tmp/webkit
+          webkit_lib=/tmp/webkit/webkit2gtk-4.0-package/usr/lib/x86_64-linux-gnu
+          cp -a ${webkit_lib}/lib*.so* ${FLATPAK_DEST}/lib/
+          mkdir -p ${FLATPAK_DEST}/lib/x86_64-linux-gnu
+          cp -a ${webkit_lib}/webkit2gtk-4.0 ${FLATPAK_DEST}/lib/x86_64-linux-gnu/
+          rm -f ${FLATPAK_DEST}/lib/x86_64-linux-gnu/webkit2gtk-4.0/MiniBrowser
+          sed -i 's#/usr/lib/x86_64-linux-gnu/webkit2gtk-4.0#/app/lib/x86_64-linux-gnu/webkit2gtk-4.0#g' ${FLATPAK_DEST}/lib/libwebkit2gtk-4.0.so.37.*
+        fi
+
+        # Point Citrix's smart card authentication at OpenSC
+        sed -i '/<key>PKCS11module<\/key>/{n;s#<value>[^<]*</value>#<value>/app/lib/opensc-pkcs11.so</value>#}' ${FLATPAK_DEST}/ICAClient/config/AuthManConfig.xml
 
       - ln -s /etc/ssl/certs/*.pem /app/ICAClient/keystore/cacerts/
       - /app/ICAClient/util/ctx_rehash /app/ICAClient/keystore/cacerts/
