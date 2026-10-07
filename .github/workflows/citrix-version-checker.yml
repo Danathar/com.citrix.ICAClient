@@ -183,6 +183,8 @@ jobs:
     runs-on: ubuntu-latest
     needs: check-version
     if: needs.check-version.outputs.needs_update == 'true'
+    permissions:
+      actions: write  # createWorkflowDispatch for build-flatpak-repo.yml
 
     steps:
     - name: Trigger Repository Build
